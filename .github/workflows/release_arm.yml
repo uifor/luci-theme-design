@@ -1,0 +1,135 @@
+name: Bulid Theme for Arm
+
+on:
+  workflow_dispatch:
+    inputs:
+      sdk_version:
+        description: '编译SDK版本'     
+        required: true
+        default: '24.10.4' 
+        type: choice
+        options:
+        - 21.02.7
+        - 22.03.7
+        - 23.05.6
+        - 24.10.4
+      upload_artifact:
+        description: '是否上传到Artifact'
+        required: false
+        type: boolean
+        default: false
+      upload_release:
+        description: '是否上传到Release'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Initialization Environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          echo -e "Total CPU cores\t: $(nproc)"
+          cat /proc/cpuinfo | grep 'model name'
+          free -h
+          uname -a
+          [ -f /proc/version ] && cat /proc/version
+          [ -f /etc/issue.net ] && cat /etc/issue.net
+          [ -f /etc/issue ] && cat /etc/issue
+          ulimit -a
+
+      - name: Download SDK
+        run: |
+          declare -A sdkMap=()
+          sdkMap["21.02.7"]="openwrt-sdk-21.02.7-armsr-armv8_gcc-8.4.0_musl"
+          sdkMap["22.03.7"]="openwrt-sdk-22.03.7-armsr-armv8_gcc-11.2.0_musl"
+          sdkMap["23.05.6"]="openwrt-sdk-23.05.6-armsr-armv8_gcc-12.3.0_musl"
+          sdkMap["24.10.4"]="openwrt-sdk-24.10.4-armsr-armv8_gcc-13.3.0_musl"
+          
+          SDK=${sdkMap["${{ inputs.sdk_version }}"]}
+          echo "USE SDK=$SDK"
+          
+          # 定义可能的后缀列表
+          EXTENSIONS=("tar.zst" "tar.xz")
+          DOWNLOAD_SUCCESS=false
+
+          for EXT in "${EXTENSIONS[@]}"; do
+            # 优先尝试从主站下载，不行再试 archive
+            URLS=(
+              "https://downloads.openwrt.org/releases/${{ inputs.sdk_version }}/targets/armsr/armv8/$SDK.Linux-x86_64.$EXT"
+              "https://archive.openwrt.org/releases/${{ inputs.sdk_version }}/targets/armsr/armv8/$SDK.Linux-x86_64.$EXT"
+            )
+            
+            for URL in "${URLS[@]}"; do
+              if wget -q --spider "$URL"; then
+                echo "Found SDK at: $URL"
+                wget "$URL" -O "sdk_package.$EXT"
+                FULL_EXT="$EXT"
+                DOWNLOAD_SUCCESS=true
+                break 2
+              fi
+            done
+          done
+
+          if [ "$DOWNLOAD_SUCCESS" = false ]; then
+            echo "Error: Could not find SDK with .tar.zst or .tar.xz at any known location."
+            exit 1
+          fi
+
+          # 根据后缀执行解压
+          if [[ "$FULL_EXT" == "tar.zst" ]]; then
+            zstd -d "sdk_package.tar.zst" -o sdk_package.tar
+          else
+            xz -d "sdk_package.tar.xz" -o sdk_package.tar
+          fi
+
+          tar -xf sdk_package.tar
+          # 动态匹配解压出的文件夹并重命名
+          mv openwrt-sdk-* openwrt-sdk
+
+      - name: Build
+        id: build
+        run: | 
+          cd openwrt-sdk
+          git clone  --depth=1 -b "${{ github.ref_name }}" https://github.com/papagaye744/luci-theme-design.git package/luci-theme-design
+          ./scripts/feeds update -a && ./scripts/feeds install -a
+          echo "CONFIG_PACKAGE_luci-theme-design=y" >> .config
+          make defconfig
+          make package/luci-theme-design/compile V=s -j$(nproc)
+          TARGET="$(find bin/ | grep  luci-theme-design)"
+          echo "TARGET=$(pwd)/$TARGET"
+          echo "TARGET=$(pwd)/$TARGET" >> $GITHUB_OUTPUT
+          echo "status=success" >> $GITHUB_OUTPUT
+          
+      - name : Upload to artifact
+        uses: actions/upload-artifact@master
+        if: steps.build.outputs.status == 'success' && github.event.inputs.upload_artifact == 'true' && !cancelled()
+        with:
+          name: luci-theme-design-${{ inputs.sdk_version }}
+          path: ${{ steps.build.outputs.TARGET }}
+
+      - name: Generate Tag Name
+        id: tag
+        if: steps.build.outputs.status == 'success' && github.event.inputs.upload_release == 'true' && !cancelled()
+        run: |
+          # 检查是否有当前的 git tag，如果没有则固定为 theme
+          TAG_NAME="${{ github.ref_name }}"
+          if [ "${{ github.ref_type }}" != "tag" ]; then
+            TAG_NAME="theme"
+          fi
+          echo "final_tag=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v1
+        if: steps.build.outputs.status == 'success' && github.event.inputs.upload_release == 'true' && !cancelled()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.tag.outputs.final_tag }}
+          name: ${{ steps.tag.outputs.final_tag }}
+          files: ${{ steps.build.outputs.TARGET }}
+          generate_release_notes: true
