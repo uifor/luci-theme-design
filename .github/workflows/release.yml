@@ -49,12 +49,47 @@ jobs:
           sdkMap["22.03.7"]="openwrt-sdk-22.03.7-x86-64_gcc-11.2.0_musl"
           sdkMap["23.05.6"]="openwrt-sdk-23.05.6-x86-64_gcc-12.3.0_musl"
           sdkMap["24.10.4"]="openwrt-sdk-24.10.4-x86-64_gcc-13.3.0_musl"
+          
           SDK=${sdkMap["${{ inputs.sdk_version }}"]}
           echo "USE SDK=$SDK"
-          wget https://archive.openwrt.org/releases/${{ inputs.sdk_version }}/targets/x86/64/$SDK.Linux-x86_64.tar.xz
-          xz -d $SDK.Linux-x86_64.tar.xz
-          tar -xf $SDK.Linux-x86_64.tar
-          mv $SDK.Linux-x86_64 openwrt-sdk
+          
+          # 定义可能的后缀列表
+          EXTENSIONS=("tar.zst" "tar.xz")
+          DOWNLOAD_SUCCESS=false
+
+          for EXT in "${EXTENSIONS[@]}"; do
+            # 优先尝试从主站下载，不行再试 archive
+            URLS=(
+              "https://downloads.openwrt.org/releases/${{ inputs.sdk_version }}/targets/x86/64/$SDK.Linux-x86_64.$EXT"
+              "https://archive.openwrt.org/releases/${{ inputs.sdk_version }}/targets/x86/64/$SDK.Linux-x86_64.$EXT"
+            )
+            
+            for URL in "${URLS[@]}"; do
+              if wget -q --spider "$URL"; then
+                echo "Found SDK at: $URL"
+                wget "$URL" -O "sdk_package.$EXT"
+                FULL_EXT="$EXT"
+                DOWNLOAD_SUCCESS=true
+                break 2
+              fi
+            done
+          done
+
+          if [ "$DOWNLOAD_SUCCESS" = false ]; then
+            echo "Error: Could not find SDK with .tar.zst or .tar.xz at any known location."
+            exit 1
+          fi
+
+          # 根据后缀执行解压
+          if [[ "$FULL_EXT" == "tar.zst" ]]; then
+            zstd -d "sdk_package.tar.zst" -o sdk_package.tar
+          else
+            xz -d "sdk_package.tar.xz" -o sdk_package.tar
+          fi
+
+          tar -xf sdk_package.tar
+          # 动态匹配解压出的文件夹并重命名
+          mv openwrt-sdk-* openwrt-sdk
 
       - name: Build
         id: build
