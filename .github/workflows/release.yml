@@ -1,16 +1,12 @@
 name: Release 21.02
 
 on:
-  push:
-    tags:
-      - 'v*'
-  repository_dispatch:
   workflow_dispatch:
     inputs:
       sdk_version:
         description: '编译SDK版本'     
         required: true
-        default: '23.05.6' 
+        default: '24.10.4' 
         type: choice
         options:
         - 21.02.7
