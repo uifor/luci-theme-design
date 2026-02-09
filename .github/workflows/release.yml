@@ -112,24 +112,24 @@ jobs:
           name: luci-theme-design-${{ inputs.sdk_version }}
           path: ${{ steps.build.outputs.TARGET }}
 
-      - name: Get tag
+      - name: Generate Tag Name
         id: tag
-        uses: dawidd6/action-get-tag@v1
         if: steps.build.outputs.status == 'success' && github.event.inputs.upload_release == 'true' && !cancelled()
-        with:
-        # Optionally strip `v` prefix
-          strip_v: false
-          
+        run: |
+          # 检查是否有当前的 git tag，如果没有则固定为 theme
+          TAG_NAME="${{ github.ref_name }}"
+          if [ "${{ github.ref_type }}" != "tag" ]; then
+            TAG_NAME="theme"
+          fi
+          echo "final_tag=$TAG_NAME" >> $GITHUB_OUTPUT
+
       - name: Upload to release
         uses: softprops/action-gh-release@v1
         if: steps.build.outputs.status == 'success' && github.event.inputs.upload_release == 'true' && !cancelled()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: ${{ steps.tag.outputs.tag }}
-          tag_name: ${{ steps.tag.outputs.tag }}
-          prerelease: false
+          tag_name: ${{ steps.tag.outputs.final_tag }}
+          name: ${{ steps.tag.outputs.final_tag }}
+          files: ${{ steps.build.outputs.TARGET }}
           generate_release_notes: true
-          files: |
-            ${{ steps.build.outputs.TARGET }}
-            LICENSE
