@@ -1,4 +1,4 @@
-name: Release 21.02
+name: Bulid Theme for X86-64
 
 on:
   workflow_dispatch:
