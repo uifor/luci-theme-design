@@ -66,7 +66,7 @@ jobs:
               for URL in \
                 "https://downloads.openwrt.org/releases/${{ inputs.sdk_version }}/targets/x86/64/$SDK.Linux-x86_64.$EXT" \
                 "https://archive.openwrt.org/releases/${{ inputs.sdk_version }}/targets/x86/64/$SDK.Linux-x86_64.$EXT"; do
-                if wget --fail --location --show-progress --retry-connrefused --tries=3 "$URL" -O "sdk-cache/$SDK.$EXT"; then
+                if curl --fail --location --show-error --retry 3 --retry-connrefused --retry-delay 2 "$URL" --output "sdk-cache/$SDK.$EXT"; then
                   SDK_ARCHIVE="sdk-cache/$SDK.$EXT"
                   echo "Downloaded SDK archive: $SDK_ARCHIVE"
                   break 2
