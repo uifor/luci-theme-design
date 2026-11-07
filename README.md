@@ -6,9 +6,8 @@
 
 ## 版本支持
 
-- ✅ OpenWrt 21.x
-- ✅ OpenWrt 23.x  
-- ✅ OpenWrt 24.x
+- ✅ OpenWrt 25.12.x (8.x，ucode / APK)
+- OpenWrt 21/23/24.x 请使用 7.x 及更早版本
 - 适用于官方 [OpenWrt](https://github.com/openwrt/openwrt)
 
 - 修复安装package提示信息背景泛白
@@ -55,20 +54,42 @@
 
 ## 自行编译
 
-### OpenWrt 21/23/24 通用方法
+### OpenWrt 25.12 编译方法
+
+OpenWrt 25.12 使用 LuCI 原生 ucode 模板。本主题的 8.x 版本面向 OpenWrt 25.12.x，默认使用 APK 包格式。
+
+```bash
+# 进入 OpenWrt 25.12 源码或 SDK 目录
+cd openwrt
+
+# 克隆主题到 package 目录
+git clone https://github.com/uifor/luci-theme-design.git package/luci-theme-design
+
+# 使用 APK 包管理器
+echo 'CONFIG_USE_APK=y' >> .config
+echo 'CONFIG_PACKAGE_luci-theme-design=y' >> .config
+make defconfig
+make package/luci-theme-design/compile V=s
+```
+
+生成的文件位于 `bin/packages/*/luci/`，文件名以 `.apk` 结尾。
+
+### OpenWrt 21/23/24
+
+7.x 及更早版本继续使用 Lua 模板，适用于 OpenWrt 21/23/24。8.x 是原生 ucode 版本，不再保留旧版 Lua 模板兼容实现。
 
 ```bash
 # 进入 OpenWrt 源码目录
 cd openwrt
 
 # 克隆主题到 package 目录
-git clone https://github.com/gngpp/luci-theme-design.git package/luci-theme-design
+git clone --branch v7.0-20251205 https://github.com/uifor/luci-theme-design.git package/luci-theme-design
 
 # 配置编译选项
 make menuconfig
 # 选择: LuCI -> 3. Themes -> luci-theme-design
 
-# 编译
+# 编译传统 IPK 包
 make package/luci-theme-design/compile V=s
 ```
 
@@ -99,9 +120,8 @@ uci commit luci
 
 详细的兼容性信息请查看 [COMPATIBILITY.md](COMPATIBILITY.md)
 
-- OpenWrt 21.x - 完全支持 ✅
-- OpenWrt 23.x - 完全支持 ✅  
-- OpenWrt 24.x - 完全支持 ✅
+- OpenWrt 21/23/24.x - 7.x 及更早版本支持 ✅
+- OpenWrt 25.12.x - 8.x 版本支持 ✅
 
 ## 故障排除
 

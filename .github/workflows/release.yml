@@ -6,13 +6,10 @@ on:
       sdk_version:
         description: '编译SDK版本'     
         required: true
-        default: '24.10.4' 
+        default: '25.12.0'
         type: choice
         options:
-        - 21.02.7
-        - 22.03.7
-        - 23.05.6
-        - 24.10.4
+        - 25.12.0
       upload_artifact:
         description: '是否上传到Artifact'
         required: false
@@ -45,10 +42,7 @@ jobs:
       - name: Download SDK
         run: |
           declare -A sdkMap=()
-          sdkMap["21.02.7"]="openwrt-sdk-21.02.7-x86-64_gcc-8.4.0_musl"
-          sdkMap["22.03.7"]="openwrt-sdk-22.03.7-x86-64_gcc-11.2.0_musl"
-          sdkMap["23.05.6"]="openwrt-sdk-23.05.6-x86-64_gcc-12.3.0_musl"
-          sdkMap["24.10.4"]="openwrt-sdk-24.10.4-x86-64_gcc-13.3.0_musl"
+          sdkMap["25.12.0"]="openwrt-sdk-25.12.0-x86-64_gcc-14.3.0_musl"
           
           SDK=${sdkMap["${{ inputs.sdk_version }}"]}
           echo "USE SDK=$SDK"
@@ -95,9 +89,12 @@ jobs:
         id: build
         run: | 
           cd openwrt-sdk
-          git clone  --depth=1 -b "${{ github.ref_name }}" https://github.com/papagaye744/luci-theme-design.git package/luci-theme-design
+          git clone  --depth=1 -b "${{ github.ref_name }}" https://github.com/uifor/luci-theme-design.git package/luci-theme-design
           ./scripts/feeds update -a && ./scripts/feeds install -a
-          echo "CONFIG_PACKAGE_luci-theme-design=y" >> .config
+          {
+            echo "CONFIG_PACKAGE_luci-theme-design=y"
+            echo "CONFIG_USE_APK=y"
+          } >> .config
           make defconfig
           make package/luci-theme-design/compile V=s -j$(nproc)
           TARGET="$(find bin/ | grep  luci-theme-design)"

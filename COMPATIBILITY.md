@@ -2,31 +2,32 @@
 
 ## 支持的 OpenWrt 版本
 
-本主题已针对以下 OpenWrt 版本进行优化和测试：
+本主题 8.x 版本面向以下 OpenWrt 版本：
 
-- ✅ **OpenWrt 21.x** - 完全支持
-- ✅ **OpenWrt 23.x** - 完全支持  
-- ✅ **OpenWrt 24.x** - 完全支持
+- ✅ **OpenWrt 25.12.x** - 8.x 版本支持，使用原生 ucode 模板和 APK 构建
+
+OpenWrt 21/23/24.x 请使用 7.x 及更早版本。8.x 不再包含旧版本 Lua 模板。
+
+> 8.x 版本不再包含 Lua `.htm` 模板，仅支持 OpenWrt 25.12.x 的 ucode LuCI 运行时。
 
 ## 主要兼容性改进
 
-### 1. LuCI API 兼容
-- 兼容新旧版本的 `L.env.dispatchpath` 和 `L.env.requestpath`
-- 支持不同版本的 ubus 调用方式
-- 自动检测并适配 LuCI 版本
+### 1. LuCI API
+- 使用 OpenWrt 25.12 原生 ucode 模板
+- 服务端通过 `ubus.call()` 获取系统信息
+- 使用 `dispatcher.lang`、`ctx.path`、`ctx.authsession` 和 `version` 等原生模板作用域
 
 ### 2. JavaScript 依赖
-- jQuery 可选：在没有 jQuery 的环境下使用原生 JavaScript
-- 动画效果降级：无 jQuery 时使用 CSS 过渡
-- 兼容层自动检测运行环境
+- 菜单模块使用 LuCI 25.12 的原生 `L.env` 和 `ui.menu` 接口
+- 主题保留 jQuery，仅用于现有移动端和插件样式兼容代码
 
 ### 3. 资源加载
-- 版本化资源 URL，避免缓存问题
-- 兼容不同版本的资源路径结构
+- 静态资源位于 `/www/luci-static/design/`
+- ucode 模板位于 `/usr/share/ucode/luci/template/themes/design/`
 
 ## 已知问题
 
-### OpenWrt 23/24 特定问题
+### OpenWrt 25.12 特定问题
 1. 某些第三方插件可能需要单独适配
 2. 如果遇到菜单显示问题，请清除浏览器缓存
 
@@ -49,19 +50,5 @@
 
 ## 技术细节
 
-### 兼容层实现
-主题包含 `compat.js` 兼容层，自动检测 LuCI 版本并提供统一接口。
-
-### 版本检测
-```javascript
-// 检测是否为新版本 LuCI (23+)
-if (L.env.luci_version) {
-    var majorVersion = parseInt(L.env.luci_version.split('.')[0]);
-    var isNewVersion = majorVersion >= 23;
-}
-```
-
-### jQuery 降级
-当 jQuery 不可用时，自动使用原生 DOM API：
-- `$(el).slideUp()` → `el.style.display = 'none'`
-- `$(el).css()` → `el.style.property = value`
+### ucode 模板
+服务端模板位于 `ucode/template/themes/design/`，由 LuCI 安装到 `/usr/share/ucode/luci/template/themes/design/`。

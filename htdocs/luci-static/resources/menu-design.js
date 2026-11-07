@@ -2,203 +2,178 @@
 'require baseclass';
 'require ui';
 
-// 兼容新旧版本 LuCI
-var LuciCompat = {
-	isNewVersion: function() {
-		return L.env.luci_version && parseFloat(L.env.luci_version.split('.')[0]) >= 23;
-	}
-};
-
 return baseclass.extend({
-	__init__: function() {
-		ui.menu.load().then(L.bind(this.render, this));
+	__init__() {
+		ui.menu.load().then(tree => this.render(tree));
 	},
 
-	render: function(tree) {
-		var node = tree,
-		    url = '';
+	render(tree) {
+		let node = tree;
+		let url = '';
 
-		this.renderModeMenu(node);
+		this.renderModeMenu(tree);
 
-		// 兼容新旧版本的 dispatchpath
-		var dispatchpath = L.env.dispatchpath || [];
+		const dispatchpath = L.env.dispatchpath || [];
 		if (dispatchpath.length >= 3) {
-			for (var i = 0; i < 3 && node; i++) {
+			for (let i = 0; i < 3 && node; i++) {
 				node = node.children[dispatchpath[i]];
-				url = url + (url ? '/' : '') + dispatchpath[i];
+				url += (url ? '/' : '') + dispatchpath[i];
 			}
 
 			if (node)
 				this.renderTabMenu(node, url);
 		}
 
-		var showSideBtn = document.querySelector('.showSide');
-		var darkMask = document.querySelector('.darkMask');
-		
+		const showSideBtn = document.querySelector('.showSide');
+		const darkMask = document.querySelector('.darkMask');
+
 		if (showSideBtn)
 			showSideBtn.addEventListener('click', ui.createHandlerFn(this, 'handleSidebarToggle'));
 
 		if (darkMask)
 			darkMask.addEventListener('click', ui.createHandlerFn(this, 'handleSidebarToggle'));
-		
-		var loadingEl = document.querySelector(".main > .loading");
+
+		const loadingEl = document.querySelector('.main > .loading');
 		if (loadingEl) {
 			loadingEl.style.opacity = '0';
 			loadingEl.style.visibility = 'hidden';
 		}
 
 		if (window.innerWidth <= 992) {
-			var mainLeft = document.querySelector('.main-left');
+			const mainLeft = document.querySelector('.main-left');
 			if (mainLeft)
 				mainLeft.style.width = '0';
 		}
 
-		var mainRight = document.querySelector('.main-right');
+		const mainRight = document.querySelector('.main-right');
 		if (mainRight)
 			mainRight.style.overflow = 'auto';
-			
+
 		window.addEventListener('resize', this.handleSidebarToggle, true);
 	},
 
-	handleMenuExpand: function(ev) {
-		var a = ev.target, slide = a.parentNode, slide_menu = a.nextElementSibling;
-		var collapse = false;
+	handleMenuExpand(ev) {
+		const a = ev.target;
+		const slideMenu = a.nextElementSibling;
+		let collapse = false;
 
-		document.querySelectorAll('.main .main-left .nav > li >ul.active').forEach(function (ul) {
-			// 兼容无 jQuery 环境
-			if (typeof $ !== 'undefined' && $.fn && $.fn.slideUp) {
-				$(ul).stop(true).slideUp("fast", function () {
-					ul.classList.remove('active');
-					if (ul.previousElementSibling)
-						ul.previousElementSibling.classList.remove('active');
-				});
-			} else {
-				ul.style.display = 'none';
-				ul.classList.remove('active');
-				if (ul.previousElementSibling)
-					ul.previousElementSibling.classList.remove('active');
-			}
-			
-			if (!collapse && ul === slide_menu) {
+		document.querySelectorAll('.main .main-left .nav > li > ul.active').forEach(ul => {
+			if (ul === slideMenu)
 				collapse = true;
-			}
+
+			ul.style.display = 'none';
+			ul.classList.remove('active');
+			if (ul.previousElementSibling)
+				ul.previousElementSibling.classList.remove('active');
 		});
 
-		if (!slide_menu)
+		if (!slideMenu || collapse)
 			return;
-		
-		if (!collapse) {
-			if (typeof $ !== 'undefined' && $.fn && $.fn.slideDown) {
-				$(slide).find(".slide-menu").slideDown("fast", function(){
-					slide_menu.classList.add('active');
-					a.classList.add('active');
-				});
-			} else {
-				var slideMenus = slide.querySelectorAll('.slide-menu');
-				slideMenus.forEach(function(menu) {
-					menu.style.display = 'block';
-				});
-				slide_menu.classList.add('active');
-				a.classList.add('active');
-			}
-			a.blur();
-		}
+
+		slideMenu.style.display = 'block';
+		slideMenu.classList.add('active');
+		a.classList.add('active');
+		a.blur();
+
 		ev.preventDefault();
 		ev.stopPropagation();
 	},
 
-	renderMainMenu: function(tree, url, level) {
-		var l = (level || 0) + 1,
-		    ul = E('ul', { 'class': level ? 'slide-menu' : 'nav' }),
-		    children = ui.menu.getChildren(tree);
+	renderMainMenu(tree, url, level) {
+		const l = (level || 0) + 1;
+		const ul = E('ul', { 'class': level ? 'slide-menu' : 'nav' });
+		const children = ui.menu.getChildren(tree);
 
-		if (children.length == 0 || l > 2)
+		if (children.length === 0 || l > 2)
 			return E([]);
-		for (var i = 0; i < children.length; i++) {
-			var isActive = ((L.env.dispatchpath[l] == children[i].name) && (L.env.dispatchpath[l - 1] == tree.name)),
-				submenu = this.renderMainMenu(children[i], url + '/' + children[i].name, l),
-				hasChildren = submenu.children.length,
-				slideClass = hasChildren ? 'slide' : null,
-				menuClass = hasChildren ? 'menu' : null;
+
+		children.forEach(child => {
+			const isActive = L.env.dispatchpath[l] === child.name;
+			const submenu = this.renderMainMenu(child, url + '/' + child.name, l);
+			const hasChildren = submenu.children.length > 0;
+			let slideClass = hasChildren ? 'slide' : '';
+			let menuClass = hasChildren ? 'menu' : '';
+
 			if (isActive) {
 				ul.classList.add('active');
-				slideClass += " active";
-				menuClass += " active";
+				slideClass += ' active';
+				menuClass += ' active';
 			}
 
 			ul.appendChild(E('li', { 'class': slideClass }, [
 				E('a', {
-					'href': L.url(url, children[i].name),
-					'click': (l == 1) ? ui.createHandlerFn(this, 'handleMenuExpand') : null,
-					'class': menuClass,
-					'data-title': hasChildren ? children[i].title.replace(" ", "_") : children[i].title.replace(" ", "_"),
-				}, [_(children[i].title)]),
+					'href': L.url(url, child.name),
+					'click': (l === 1 && hasChildren) ? ui.createHandlerFn(this, 'handleMenuExpand') : null,
+					'class': menuClass || null,
+					'data-title': child.title.replace(' ', '_')
+				}, [_(child.title)]),
 				submenu
 			]));
-		}
+		});
 
-		if (l == 1) {
-			var container = document.querySelector('#mainmenu');
-
-			container.appendChild(ul);
-			container.style.display = '';
+		if (l === 1) {
+			const container = document.querySelector('#mainmenu');
+			if (container) {
+				container.appendChild(ul);
+				container.style.display = '';
+			}
 		}
 
 		return ul;
 	},
 
-	renderModeMenu: function(tree) {
-		var ul = document.querySelector('#modemenu');
-		if (!ul) return;
-		
-		var children = ui.menu.getChildren(tree);
+	renderModeMenu(tree) {
+		const ul = document.querySelector('#modemenu');
+		if (!ul)
+			return;
 
-		// 兼容新旧版本的 requestpath
-		var requestpath = L.env.requestpath || [];
-		
-		for (var i = 0; i < children.length; i++) {
-			var isActive = (requestpath.length ? children[i].name == requestpath[0] : i == 0);
+		const children = ui.menu.getChildren(tree);
+		const requestpath = L.env.requestpath || [];
+
+		children.forEach((child, index) => {
+			const isActive = requestpath.length ? child.name === requestpath[0] : index === 0;
 
 			ul.appendChild(E('li', {}, [
 				E('a', {
-					'href': L.url(children[i].name),
+					'href': L.url(child.name),
 					'class': isActive ? 'active' : null
-				}, [ _(children[i].title) ])
+				}, [_(child.title)])
 			]));
 
 			if (isActive)
-				this.renderMainMenu(children[i], children[i].name);
+				this.renderMainMenu(child, child.name);
 
-			if (i > 0 && i < children.length)
-				ul.appendChild(E('li', {'class': 'divider'}, [E('span')]))
-		}
+			if (index > 0 && index < children.length - 1)
+				ul.appendChild(E('li', { 'class': 'divider' }, [E('span')]));
+		});
 
 		if (children.length > 1 && ul.parentElement)
 			ul.parentElement.style.display = '';
 	},
 
-	renderTabMenu: function(tree, url, level) {
-		var container = document.querySelector('#tabmenu'),
-			l = (level || 0) + 1,
-			ul = E('ul', { 'class': 'tabs' }),
-			children = ui.menu.getChildren(tree),
-			activeNode = null;
+	renderTabMenu(tree, url, level) {
+		const container = document.querySelector('#tabmenu');
+		const l = (level || 0) + 1;
+		const ul = E('ul', { 'class': 'tabs' });
+		const children = ui.menu.getChildren(tree);
+		let activeNode = null;
 
-		if (children.length == 0)
+		if (!container || children.length === 0)
 			return E([]);
 
-		for (var i = 0; i < children.length; i++) {
-			var isActive = (L.env.dispatchpath[l + 2] == children[i].name),
-				activeClass = isActive ? ' active' : '',
-				className = 'tabmenu-item-%s %s'.format(children[i].name, activeClass);
+		children.forEach(child => {
+			const isActive = L.env.dispatchpath[l + 2] === child.name;
+			const activeClass = isActive ? ' active' : '';
 
-			ul.appendChild(E('li', { 'class': className }, [
-				E('a', { 'href': L.url(url, children[i].name) }, [_(children[i].title)])
+			ul.appendChild(E('li', {
+				'class': 'tabmenu-item-%s%s'.format(child.name, activeClass)
+			}, [
+				E('a', { 'href': L.url(url, child.name) }, [_(child.title)])
 			]));
 
 			if (isActive)
-				activeNode = children[i];
-		}
+				activeNode = child;
+		});
 
 		container.appendChild(ul);
 		container.style.display = '';
@@ -209,38 +184,35 @@ return baseclass.extend({
 		return ul;
 	},
 
-	handleSidebarToggle: function(ev) {
-		var width = window.innerWidth,
-		    darkMask = document.querySelector('.darkMask'),
-		    mainRight = document.querySelector('.main-right'),
-		    mainLeft = document.querySelector('.main-left'),
-		    open = mainLeft.style.width == '';
+	handleSidebarToggle(ev) {
+		const width = window.innerWidth;
+		const darkMask = document.querySelector('.darkMask');
+		const mainRight = document.querySelector('.main-right');
+		const mainLeft = document.querySelector('.main-left');
 
-			if (width > 992 || ev.type == 'resize')
-				open = true;
-				
+		if (!darkMask || !mainRight || !mainLeft)
+			return;
+
+		let open = mainLeft.style.width === '';
+		if (width > 992 || (ev && ev.type === 'resize'))
+			open = true;
+
 		darkMask.style.visibility = open ? '' : 'visible';
-		darkMask.style.opacity = open ? '': 1;
+		darkMask.style.opacity = open ? '' : 1;
 
 		if (width <= 992)
 			mainLeft.style.width = open ? '0' : '';
 		else
-			mainLeft.style.width = ''
+			mainLeft.style.width = '';
 
-		// 初始化设置，css后置设置导致刷新会闪现。
 		mainLeft.style.transition = 'visibility 2000ms, width 200ms';
 		mainLeft.style.visibility = open ? '' : 'visible';
+		mainRight.style.overflowY = open ? 'auto' : 'visible';
 
-		mainRight.style['overflow-y'] = open ? 'auto' : 'visible';
-
-		var header = document.querySelector("header");
-		if (header) {
-			if (typeof $ !== 'undefined' && $.fn && $.fn.css) {
-				$("header").css("box-shadow", open ? "0 2px 4px rgb(0 0 0 / 8%)" : "17rem 2px 4px rgb(0 0 0 / 8%)");
-			} else {
-				header.style.boxShadow = open ? "0 2px 4px rgb(0 0 0 / 8%)" : "17rem 2px 4px rgb(0 0 0 / 8%)";
-			}
-		}
-	},
+		const header = document.querySelector('header');
+		if (header)
+			header.style.boxShadow = open
+				? '0 2px 4px rgb(0 0 0 / 8%)'
+				: '17rem 2px 4px rgb(0 0 0 / 8%)';
+	}
 });
-

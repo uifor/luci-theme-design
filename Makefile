@@ -6,12 +6,20 @@
 include $(TOPDIR)/rules.mk
 
 LUCI_TITLE:=Design Theme
-LUCI_DEPENDS:=
-PKG_VERSION:=7.0
-PKG_RELEASE:=20251205
+LUCI_DEPENDS:=+luci-base
+PKG_VERSION:=8.0
+PKG_RELEASE:=20261107
 
 LUCI_MINIFY_CSS:=
 CONFIG_LUCI_CSSTIDY:=
+
+define Package/luci-theme-design/postrm
+#!/bin/sh
+[ -n "$${IPKG_INSTROOT}" ] || {
+	uci -q delete luci.themes.Design
+	uci commit luci
+}
+endef
 
 include $(TOPDIR)/feeds/luci/luci.mk
 
