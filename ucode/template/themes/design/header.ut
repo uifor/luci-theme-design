@@ -36,7 +36,6 @@
 	<meta name="apple-touch-fullscreen" content="yes">
 	<meta name="msapplication-TileColor" content="#09c">
 	<link rel="stylesheet" href="{{ media }}/css/style.css">
-	<link rel="stylesheet" href="{{ media }}/css/compat-openwrt23.css">
 	<link rel="shortcut icon" href="{{ media }}/favicon.ico">
 {% if (node?.css): %}
 	<link rel="stylesheet" href="{{ resource }}/{{ node.css }}">
