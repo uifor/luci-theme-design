@@ -53,7 +53,10 @@ return baseclass.extend({
 	},
 
 	handleMenuExpand(ev) {
-		const a = ev.target;
+		ev.preventDefault();
+		ev.stopPropagation();
+
+		const a = ev.currentTarget || ev.target;
 		const slideMenu = a.nextElementSibling;
 		let collapse = false;
 
@@ -74,9 +77,6 @@ return baseclass.extend({
 		slideMenu.classList.add('active');
 		a.classList.add('active');
 		a.blur();
-
-		ev.preventDefault();
-		ev.stopPropagation();
 	},
 
 	renderMainMenu(tree, url, level) {
