@@ -769,7 +769,8 @@ span[data-indicator="uci-changes"] {
     content: "\44";
 }
 
-.main > .main-left > .nav > .slide > .slide-menu > li > a[data-title="Podman"]:before {
+.main .main-left .nav a[data-title="Podman"]:before,
+.main .main-left .nav a[href*="/podman"]:before {
     display: inline-block;
     position: absolute;
     left: 0.75rem;
