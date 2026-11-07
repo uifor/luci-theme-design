@@ -769,6 +769,20 @@ span[data-indicator="uci-changes"] {
     content: "\44";
 }
 
+.main > .main-left > .nav > .slide > .slide-menu > li > a[data-title="Podman"]:before {
+    display: inline-block;
+    position: absolute;
+    left: 0.75rem;
+    top: 0.675rem;
+    font-family: "design" !important;
+    font-weight: bold !important;
+    text-transform: none !important;
+    speak: none;
+    font-size: 1.2rem !important;
+    content: "\44";
+    -webkit-font-smoothing: antialiased;
+}
+
 .main > .main-left > .nav > .slide > a[data-title="NAS"]:before {
     content: "\eb04";
 }

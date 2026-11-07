@@ -74,6 +74,8 @@ make package/luci-theme-design/compile V=s
 
 生成的文件位于 `bin/packages/*/luci/`，文件名以 `.apk` 结尾。
 
+GitHub Actions 工作流会按 OpenWrt 版本、目标架构和 GCC 版本缓存 SDK 压缩包。首次编译仍需从官方源下载，后续同版本同架构编译会优先使用缓存；缓存被 GitHub 回收后，工作流会自动从官方源重新下载。
+
 ### OpenWrt 21/23/24
 
 7.x 及更早版本继续使用 Lua 模板，适用于 OpenWrt 21/23/24。8.x 是原生 ucode 版本，不再保留旧版 Lua 模板兼容实现。

@@ -39,51 +39,77 @@ jobs:
           [ -f /etc/issue ] && cat /etc/issue
           ulimit -a
 
+      - name: Restore SDK cache
+        id: sdk-cache
+        uses: actions/cache/restore@v4
+        continue-on-error: true
+        with:
+          path: sdk-cache
+          key: openwrt-sdk-${{ inputs.sdk_version }}-armsr-armv8-gcc-14.3.0-v1
+
       - name: Download SDK
         run: |
           declare -A sdkMap=()
           sdkMap["25.12.0"]="openwrt-sdk-25.12.0-armsr-armv8_gcc-14.3.0_musl"
-          
+
           SDK=${sdkMap["${{ inputs.sdk_version }}"]}
           echo "USE SDK=$SDK"
-          
-          # 定义可能的后缀列表
-          EXTENSIONS=("tar.zst" "tar.xz")
-          DOWNLOAD_SUCCESS=false
 
-          for EXT in "${EXTENSIONS[@]}"; do
-            # 优先尝试从主站下载，不行再试 archive
-            URLS=(
-              "https://downloads.openwrt.org/releases/${{ inputs.sdk_version }}/targets/armsr/armv8/$SDK.Linux-x86_64.$EXT"
-              "https://archive.openwrt.org/releases/${{ inputs.sdk_version }}/targets/armsr/armv8/$SDK.Linux-x86_64.$EXT"
-            )
-            
-            for URL in "${URLS[@]}"; do
-              if wget -q --spider "$URL"; then
-                echo "Found SDK at: $URL"
-                wget "$URL" -O "sdk_package.$EXT"
-                FULL_EXT="$EXT"
-                DOWNLOAD_SUCCESS=true
-                break 2
-              fi
+          mkdir -p sdk-cache
+          SDK_ARCHIVE="$(find sdk-cache -maxdepth 1 -type f \( -name '*.tar.zst' -o -name '*.tar.xz' \) -print -quit)"
+
+          if [ -n "$SDK_ARCHIVE" ]; then
+            echo "Using cached SDK archive: $SDK_ARCHIVE"
+          else
+            # 优先尝试主站，失败后再使用 archive；直接下载避免额外的 spider 请求。
+            for EXT in tar.zst tar.xz; do
+              for URL in \
+                "https://downloads.openwrt.org/releases/${{ inputs.sdk_version }}/targets/armsr/armv8/$SDK.Linux-x86_64.$EXT" \
+                "https://archive.openwrt.org/releases/${{ inputs.sdk_version }}/targets/armsr/armv8/$SDK.Linux-x86_64.$EXT"; do
+                if wget --fail --location --show-progress --retry-connrefused --tries=3 "$URL" -O "sdk-cache/$SDK.$EXT"; then
+                  SDK_ARCHIVE="sdk-cache/$SDK.$EXT"
+                  echo "Downloaded SDK archive: $SDK_ARCHIVE"
+                  break 2
+                fi
+              done
             done
-          done
 
-          if [ "$DOWNLOAD_SUCCESS" = false ]; then
-            echo "Error: Could not find SDK with .tar.zst or .tar.xz at any known location."
-            exit 1
+            if [ -z "$SDK_ARCHIVE" ]; then
+              echo "Error: Could not download the OpenWrt SDK."
+              exit 1
+            fi
           fi
 
           # 根据后缀执行解压
-          if [[ "$FULL_EXT" == "tar.zst" ]]; then
-            zstd -d "sdk_package.tar.zst" -o sdk_package.tar
-          else
-            xz -d "sdk_package.tar.xz" -o sdk_package.tar
-          fi
+          case "$SDK_ARCHIVE" in
+            *.tar.zst)
+              zstd -d "$SDK_ARCHIVE" -o sdk_package.tar
+              ;;
+            *.tar.xz)
+              xz -d "$SDK_ARCHIVE" -o sdk_package.tar
+              ;;
+            *)
+              echo "Error: Unsupported SDK archive format: $SDK_ARCHIVE"
+              exit 1
+              ;;
+          esac
 
           tar -xf sdk_package.tar
           # 动态匹配解压出的文件夹并重命名
-          mv openwrt-sdk-* openwrt-sdk
+          SDK_DIR="$(find . -mindepth 1 -maxdepth 1 -type d -name 'openwrt-sdk-*' -print -quit)"
+          if [ -z "$SDK_DIR" ]; then
+            echo "Error: Extracted SDK directory was not found."
+            exit 1
+          fi
+          mv "$SDK_DIR" openwrt-sdk
+
+      - name: Save SDK cache
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: sdk-cache
+          key: openwrt-sdk-${{ inputs.sdk_version }}-armsr-armv8-gcc-14.3.0-v1
 
       - name: Build
         id: build
